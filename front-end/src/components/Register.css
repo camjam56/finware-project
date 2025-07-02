@@ -1,0 +1,25 @@
+body {
+  background: linear-gradient(to bottom right, #abffd2, #a0efff);
+  margin: 0;
+}
+.register-container {
+  /*font style*/
+
+  font-family: monospace;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+}
+.main-title {
+  display: flex;
+  font-weight: 900;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "acc_1",
+    "user": "James Bond",
+    "type": "ISA",
+    "balance": 56000,
+    "currency": "GBP",
+    "provider": "FinWare Project Bank"
+  },
+  {
+    "id": "acc_2",
+    "user": "James Bond",
+    "type": "GIA",
+    "balance": 700,
+    "currency": "GBP",
+    "provider": "FinWare Project Bank"
+  },
+  {
+    "id": "acc_3",
+    "user": "James Bond",
+    "type": "Pension",
+    "balance": 24000,
+    "currency": "GBP",
+    "provider": "FinWare Project Pension LTD"
+  }
+]
