@@ -1,0 +1,34 @@
+# Node.js dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+
+# SQLite database file (optional: ignore if you want local DB only)
+users.db
+
+# Mac system files
+.DS_Store
+
+# Linux system files (if any)
+*~
+
+# Compiled C binaries and object files
+*.out
+*.o
+*.obj
+
+# Editor directories and files (common ones)
+.vscode/
+.idea/
+*.swp
+*.swo
