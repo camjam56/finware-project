@@ -39,11 +39,62 @@ int login_check(
 	return login_success;
 }
 
+void login_handler(int new_fd, cJSON *root){
+
+	//Extracting the fields into respective variables
+	cJSON *username = cJSON_GetObjectItem(root, "username");
+	cJSON *password = cJSON_GetObjectItem(root, "password");
+
+	if (!cJSON_IsString(username) || !cJSON_IsString(password)) {
+		printf("Invalid JSON structure, failed to parse\n");
+		cJSON_Delete(root);
+		close(new_fd);
+		return;
+	}
+
+	int login_success = 0;
+
+	sqlite3* db;
+	if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
+		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+		return;
+	}
+
+	login_success = login_check(db, username->valuestring, password->valuestring);
+	sqlite3_close(db);
+
+	if (login_success == 1){
+		printf("Login Successful!\n");
+		const char* response =
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/plain\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 1\r\n"
+			"\r\n"
+			"1";
+		send(new_fd, response, strlen(response), 0);
+	}
+	else {
+		printf("Failed to login\n");
+		const char* response =
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/plain\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 1\r\n"
+			"\r\n"
+			"0";
+		send(new_fd, response, strlen(response), 0);
+	}
+
+}
+
+void register_handler(){}
+
 
 int main(void){
 
-    int sockfd;                         //socket file descriptor
-    struct sockaddr_in server_addr;     //struct type, with format of sockaddr_in, named server_addr
+    int sockfd;                         //Socket file descriptor
+    struct sockaddr_in server_addr;     //Struct type, with format of sockaddr_in, named server_addr
 
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -56,8 +107,8 @@ int main(void){
 	printf("Socket created successfully! \nSocket File Descriptor = %d\n", sockfd);
 
 
-	//defining socket info
-	server_addr.sin_family = AF_INET;       //ipv4
+	//Defining socket info
+	server_addr.sin_family = AF_INET;       //IPv4
 	server_addr.sin_port = htons(PORT);
 	server_addr.sin_addr.s_addr = INADDR_ANY; 
 	memset(server_addr.sin_zero, 0, sizeof(server_addr.sin_zero));
@@ -81,7 +132,7 @@ int main(void){
 	printf("------------------------------------------------\n");
 	printf("Server is listening on port 5656...\n");
 
-	//connection while loop begins here
+	//Connection while loop begins here
 	while(1){
 
 		struct sockaddr_in client_addr;
@@ -95,7 +146,7 @@ int main(void){
 		printf("------------------------------------------------\n");
 		printf("Accepted a connection!\n");
 
-		//buffer is a temporary storage for sent/to-be-received information
+		//Buffer is a temporary storage for sent/to-be-received information
 		char buffer[BUFFER_SIZE];
 		int bytes_received = recv(new_fd, buffer, sizeof(buffer) -1, 0);
 		if(bytes_received < 0){
@@ -127,62 +178,28 @@ int main(void){
 			close(new_fd);
 			continue;
 		}
-		json_start += 4; //removes the \r\n\r\n to begin json_start from the start
 
-		//parsing the JSON file to be read by C
+		//Removes the \r\n\r\n to begin json_start from the start
+		json_start += 4;
+
+		//Parsing the JSON file to be read by C
 		cJSON *root = cJSON_Parse(json_start);
+
+		//Error check for correct parsing
 		if (root == NULL) {
 			printf("Error parsing JSON file\n");
 			close(new_fd);
 			continue;
 		}
 
-		//extracting the fields into respective variables
-		cJSON *username = cJSON_GetObjectItem(root, "username");
-		cJSON *password = cJSON_GetObjectItem(root, "password");
-
-		if (!cJSON_IsString(username) || !cJSON_IsString(password)) {
-			printf("Invalid JSON structure, failed to parse\n");
-			cJSON_Delete(root);
-			close(new_fd);
-			continue;
+		cJSON *action = cJSON_GetObjectItem(root, "action");
+		if(strcmp(action->valuestring, "login") == 0){
+			login_handler(new_fd, root);
 		}
-
-		int login_success = 0;
-
-		sqlite3* db;
-		if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
-			fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
-			continue;
+		else if (strcmp(action->valuestring, "register") == 0){
+			register_handler();
 		}
-
-		login_success = login_check(db, username->valuestring, password->valuestring);
-		sqlite3_close(db);
-
-
-		if (login_success == 1){
-			printf("Login Successful!\n");
-			const char* response =
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Type: text/plain\r\n"
-				"Access-Control-Allow-Origin: *\r\n"
-				"Content-Length: 1\r\n"
-				"\r\n"
-				"1";
-			send(new_fd, response, strlen(response), 0);
-		}
-		else {
-			printf("Failed to login\n");
-			const char* response =
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Type: text/plain\r\n"
-				"Access-Control-Allow-Origin: *\r\n"
-				"Content-Length: 1\r\n"
-				"\r\n"
-				"0";
-			send(new_fd, response, strlen(response), 0);
-		}
-
+	
 		cJSON_Delete(root);
 		close(new_fd);
 
