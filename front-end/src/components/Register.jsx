@@ -11,7 +11,9 @@ const Register = () => {
 	const [passwordConfirm, setPasswordConfirm] = useState('');
 	const [message, setMessage] = useState('');
 
-	const handleRegister = () => {
+	const handleValidation = () => {
+
+		//Password Validation Logic
 		const passwordRegex = /^[A-Za-z0-9?!]+$/;
 
 		if (!regPassword.match(passwordRegex)) {
@@ -27,6 +29,24 @@ const Register = () => {
 			return;
 		}
 		setMessage(`Success!`);
+		handleRegister();
+
+	}
+
+	const handleRegister = async () => {
+		try {
+			const response = await fetch('http://localhost:5656', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'register',
+					regUsername,
+					regPassword,
+				}),
+			});
+
+		}
+		catch { };
 	}
 
 	return (
@@ -54,9 +74,9 @@ const Register = () => {
 				value={passwordConfirm}
 				onChange={(e) => setPasswordConfirm(e.target.value)}
 			/>
-			<button className="register-button" onClick={handleRegister}>Create Account</button>
+			<button className="register-button" onClick={handleValidation}>Create Account</button>
 			<div className="return-button">
-				<h2>Click below to return to login page</h2>
+				<h3>Click below to return to login page</h3>
 				<button onClick={() => navigate(ROUTES.login)}>Return to Login</button>
 			</div>
 			<p>{message}</p>
