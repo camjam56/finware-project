@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include "libs/cJSON.h"
 #include <sqlite3.h>
-
+#include <regex.h>
 
 const int PORT = 5656;
 const int BACKLOG = 12;
@@ -88,7 +88,55 @@ void login_handler(int new_fd, cJSON *root){
 
 }
 
-void register_handler(){}
+int password_validity_check(cJSON *reg_username, cJSON *reg_password, cJSON *reg_password_confirm){
+
+	regex_t regex;
+	int ret;
+
+	const char *pattern = "^[A-Za-z0-9?!]+$";
+
+	ret = regcomp(&regex, pattern, REG_EXTENDED);
+
+	if(ret){
+	fprintf(stderr, "Regex failed to compile\n");
+	return 0;
+	}
+
+	ret = regexec(&regex, reg_password->valuestring, 0, NULL, 0);
+	regfree(&regex);
+
+	if(ret == 0){
+		return 1;
+	} else {
+		fprintf(stderr, "Failed to regexec, invalid input");
+		return 0;
+	}
+}
+
+
+void register_handler(int new_fd, cJSON *root){
+
+	cJSON *reg_username = cJSON_GetObjectItem(root, "regUsername");
+	cJSON *reg_password = cJSON_GetObjectItem(root, "regPassword");
+	cJSON *reg_password_confirm = cJSON_GetObjectItem(root, "passwordConfirm");
+
+	if (!cJSON_IsString(reg_username) || !cJSON_IsString(reg_password) || !cJSON_IsString(reg_password_confirm)) {
+		printf("Invalid JSON structure, failed to parse\n");
+		cJSON_Delete(root);
+		close(new_fd);
+		return;
+	}
+
+	if (!password_validity_check(reg_username, reg_password, reg_password_confirm)){
+	printf("Failed to ensure password validity");
+	close(new_fd);
+	return;
+	}
+
+}
+
+
+
 
 
 int main(void){
@@ -197,7 +245,7 @@ int main(void){
 			login_handler(new_fd, root);
 		}
 		else if (strcmp(action->valuestring, "register") == 0){
-			register_handler();
+			register_handler(new_fd, root);
 		}
 	
 		cJSON_Delete(root);

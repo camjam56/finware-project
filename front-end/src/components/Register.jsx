@@ -42,9 +42,11 @@ const Register = () => {
 					action: 'register',
 					regUsername,
 					regPassword,
+					passwordConfirm
 				}),
 			});
 
+			const result = await response.text();
 		}
 		catch { };
 	}
