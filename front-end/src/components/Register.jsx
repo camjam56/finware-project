@@ -47,8 +47,15 @@ const Register = () => {
 			});
 
 			const result = await response.text();
+
+			if (result === '1') {
+				//Regsitration validity checks succeeded
+				setMessage(`Account successfully validated!`);
+			}
 		}
-		catch { };
+		catch (error) {
+			setMessage(`Failed to create account, please try again`);
+		};
 	}
 
 	return (
@@ -84,5 +91,6 @@ const Register = () => {
 			<p>{message}</p>
 		</div>
 	);
+
 };
 export default Register;
