@@ -50,11 +50,11 @@ const Register = () => {
 
 			if (result === '1') {
 				//Regsitration validity checks succeeded
-				setMessage(`Account successfully validated!`);
+				setMessage(`Connected to server!`);
 			}
 		}
 		catch (error) {
-			setMessage(`Failed to create account, please try again`);
+			setMessage(`Failed to connect to server, please try again`);
 		};
 	}
 

@@ -39,29 +39,7 @@ int login_check(
 	return login_success;
 }
 
-int unique_username_check(sqlite3 *db, cJSON *reg_username){
 
-	sqlite3_stmt *stmt;
-	const char *sql = "SELECT 1 FROM users WHERE username=?";
-
-	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-	if (rc != SQLITE_OK){
-		printf("Error: Failed to prepare statement (uuc)");
-		return 0;
-	}
-
-	sqlite3_bind_text(stmt, 1, reg_username->valuestring, -1, SQLITE_STATIC);
-
-	rc = sqlite3_step(stmt);
-	if (rc == SQLITE_ROW){
-		printf("Username duplicate found, failed to register");
-		sqlite3_finalize(stmt);
-		return 0;
-	}
-
-	sqlite3_finalize(stmt);
-	return 1;
-}
 
 void login_handler(int new_fd, cJSON *root){
 
@@ -112,7 +90,10 @@ void login_handler(int new_fd, cJSON *root){
 
 }
 
-int password_validity_check(sqlite3 *db, cJSON *reg_username, cJSON *reg_password, cJSON *reg_password_confirm){
+int password_validity_check(sqlite3 *db, 
+			    cJSON *reg_username, 
+			    cJSON *reg_password, 
+			    cJSON *reg_password_confirm){
 
 	regex_t regex;
 	int ret;
@@ -134,21 +115,74 @@ int password_validity_check(sqlite3 *db, cJSON *reg_username, cJSON *reg_passwor
 		return 0;
 	}
 
-	if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
-		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+	return 1;
+}
+
+int unique_username_check(sqlite3 *db, cJSON *reg_username){
+
+	sqlite3_stmt *stmt;
+	const char *sql = "SELECT 1 FROM users WHERE username=?";
+
+	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		printf("Error: failed to prepare statement (uuc)");
 		return 0;
 	}
 
+	sqlite3_bind_text(stmt, 1, reg_username->valuestring, -1, SQLITE_STATIC);
+
+	rc = sqlite3_step(stmt);
+	if (rc == SQLITE_ROW){
+		printf("Username duplicate found, failed to register");
+		sqlite3_finalize(stmt);
+		return 0;
+	}
+
+	sqlite3_finalize(stmt);
 	return 1;
+}
+
+int insert_new_account(
+	sqlite3 *db, 
+	cJSON *reg_username, 
+	cJSON *reg_password){
+
+	const char *new_username = reg_username->valuestring;
+	const char *new_password = reg_password->valuestring;
+
+	sqlite3_stmt *stmt;
+	const char *sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+
+	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		fprintf(stderr, "Error: failed to prepare statement (ina)");
+		return 0;
+	}
+
+	sqlite3_bind_text(stmt, 1, new_username, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 2, new_password, -1, SQLITE_STATIC);
+
+	rc = sqlite3_step(stmt);
+	if (rc != SQLITE_DONE){
+		fprintf(stderr, "Error: Failed to insert new user into database (%s)", sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+		return 0;
+	}
+
+	sqlite3_finalize(stmt);
+	return 1; 
+
 }
 
 void register_handler(int new_fd, cJSON *root){
 
 	cJSON *reg_username = cJSON_GetObjectItem(root, "regUsername");
 	cJSON *reg_password = cJSON_GetObjectItem(root, "regPassword");
-	cJSON *reg_password_confirm = cJSON_GetObjectItem(root, "passwordConfirm");
+	cJSON *password_confirm = cJSON_GetObjectItem(root, "passwordConfirm");
 
-	if (!cJSON_IsString(reg_username) || !cJSON_IsString(reg_password) || !cJSON_IsString(reg_password_confirm)) {
+	if (!cJSON_IsString(reg_username) 
+		|| !cJSON_IsString(reg_password) 
+		|| !cJSON_IsString(password_confirm)) {
 		printf("Invalid JSON structure, failed to parse\n");
 		cJSON_Delete(root);
 		close(new_fd);
@@ -156,6 +190,12 @@ void register_handler(int new_fd, cJSON *root){
 	}
 
 	sqlite3 *db;
+	if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
+		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+		return;
+	}
+
+
 
 	const char* response =
 		"HTTP/1.1 200 OK\r\n"
@@ -166,7 +206,7 @@ void register_handler(int new_fd, cJSON *root){
 		"0";
 
 
-	if (!password_validity_check(db, reg_username, reg_password, reg_password_confirm)){
+	if (!password_validity_check(db, reg_username, reg_password, password_confirm)){
 		fprintf(stderr, "Failed to ensure password validity");
 		send(new_fd, response, strlen(response), 0);
 		close(new_fd);
@@ -179,7 +219,29 @@ void register_handler(int new_fd, cJSON *root){
 		close(new_fd);
 		return;
 	}
+	
+	if (!insert_new_account(db, reg_username, reg_password)){
+		fprintf(stderr, "Failed to complete new account creation");
+		send(new_fd, response, strlen(response), 0);
+		close(new_fd);
+		return;
+	}
+	else{
+		const char* response =
+		"HTTP/1.1 200 OK\r\n"
+		"Content-Type: text/plain\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Content-Length: 1\r\n"
+		"\r\n"
+		"1";
 
+		send((new_fd), response, strlen(response), 0);
+	}
+
+	sqlite3_close(db);
+
+
+	
 
 }
 
@@ -286,14 +348,20 @@ int main(void){
 		}
 
 		cJSON *action = cJSON_GetObjectItem(root, "action");
-		if(strcmp(action->valuestring, "login") == 0){
+		if (!cJSON_IsString(action)) {
+			printf("Invalid JSON: 'action' failed to be indentified");
+			cJSON_Delete(root);
+			close(new_fd);
+			continue;
+		}
+		else if(strcmp(action->valuestring, "login") == 0){
 			login_handler(new_fd, root);
 		}
 		else if (strcmp(action->valuestring, "register") == 0){
 			sqlite3 *db;
 			register_handler(new_fd, root);
 		}
-	
+
 		cJSON_Delete(root);
 		close(new_fd);
 
