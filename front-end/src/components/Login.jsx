@@ -13,12 +13,11 @@ const Login = () => {
 
 	const handleLogin = async () => {
 		try {
-			const response = await fetch('http://localhost:5656',
+			const response = await fetch('http://localhost:5656/login',
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
-						action: 'login',
 						username,
 						password,
 					}),

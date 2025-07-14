@@ -15,31 +15,41 @@ const Register = () => {
 
 		//Password Validation Logic
 		const passwordRegex = /^[A-Za-z0-9?!]+$/;
+		const usernameRegex = /^[A-Za-z0-9_]+$/;
+
+		if (!regUsername.match(usernameRegex)) {
+			setMessage(`Invalid Username: May only contain letters, numbers and underscores`);
+			return;
+		}
+
+		if (regUsername.trim() == '') {
+			setMessage(`Invalid Username: Must contain characters`);
+			return;
+		}
 
 		if (!regPassword.match(passwordRegex)) {
 			setMessage(`Invalid Password: May only contain letters, numbers, "?" and "!"`);
 			return;
 		}
 		if (regPassword.trim() == '') {
-			setMessage(`Invalid Password: Empty password`);
+			setMessage(`Invalid Password: Must contain characters`);
 			return;
 		}
 		if (regPassword != passwordConfirm) {
 			setMessage(`Passwords do not match`);
 			return;
 		}
-		setMessage(`Success!`);
+		setMessage(`Communicating with server!`);
 		handleRegister();
 
 	}
 
 	const handleRegister = async () => {
 		try {
-			const response = await fetch('http://localhost:5656', {
+			const response = await fetch('http://localhost:5656/register', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					action: 'register',
 					regUsername,
 					regPassword,
 					passwordConfirm
