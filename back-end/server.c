@@ -11,6 +11,14 @@ const int PORT = 5656;
 const int BACKLOG = 12;
 const int BUFFER_SIZE = 1024;
 
+const char* get_mock_stock_data() {
+    return "{ \"stocks\": ["
+           "{ \"symbol\": \"GPU\", \"name\": \"GPU Designer Inc.\", \"price\": 2034.23, \"change\": -0.54 },"
+           "{ \"symbol\": \"MBRD\", \"name\": \"Motherboard Designer Inc.\", \"price\": 1230.01, \"change\": 12.21 },"
+           "{ \"symbol\": \"SSD\", \"name\": \"SSD Designer Inc.\", \"price\": 32.12, \"change\": -4.23 }"
+           "] }";
+}
+
 int login_check(
 
 	sqlite3* db,
@@ -37,30 +45,6 @@ int login_check(
 	}
 	sqlite3_finalize(stmt);
 	return login_success;
-}
-
-int unique_username_check(sqlite3 *db, cJSON *reg_username){
-
-	sqlite3_stmt *stmt;
-	const char *sql = "SELECT 1 FROM users WHERE username=?";
-
-	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-	if (rc != SQLITE_OK){
-		printf("Error: Failed to prepare statement (uuc)");
-		return 0;
-	}
-
-	sqlite3_bind_text(stmt, 1, reg_username->valuestring, -1, SQLITE_STATIC);
-
-	rc = sqlite3_step(stmt);
-	if (rc == SQLITE_ROW){
-		printf("Username duplicate found, failed to register");
-		sqlite3_finalize(stmt);
-		return 0;
-	}
-
-	sqlite3_finalize(stmt);
-	return 1;
 }
 
 void login_handler(int new_fd, cJSON *root){
@@ -112,7 +96,10 @@ void login_handler(int new_fd, cJSON *root){
 
 }
 
-int password_validity_check(sqlite3 *db, cJSON *reg_username, cJSON *reg_password, cJSON *reg_password_confirm){
+int password_validity_check(sqlite3 *db, 
+			    cJSON *reg_username, 
+			    cJSON *reg_password, 
+			    cJSON *reg_password_confirm){
 
 	regex_t regex;
 	int ret;
@@ -134,21 +121,101 @@ int password_validity_check(sqlite3 *db, cJSON *reg_username, cJSON *reg_passwor
 		return 0;
 	}
 
-	if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
-		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+	return 1;
+}
+
+int username_validity_check(sqlite3 *db, cJSON *reg_username){
+
+	regex_t regex;
+	int ret;
+
+	const char *pattern = "^[A-Za-z0-9_]+$";
+
+	ret = regcomp(&regex, pattern, REG_EXTENDED);
+
+	if(ret){
+		fprintf(stderr, "Regex failed to compile\n");
+		return 0;
+	}
+
+	ret = regexec(&regex, reg_username->valuestring, 0, NULL, 0);
+	regfree(&regex);
+
+	
+	if(ret != 0){
+		fprintf(stderr, "Failed to regexec or username, invalid input");
 		return 0;
 	}
 
 	return 1;
+
+}
+
+int unique_username_check(sqlite3 *db, cJSON *reg_username){
+
+	sqlite3_stmt *stmt;
+	const char *sql = "SELECT 1 FROM users WHERE username=?";
+
+	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		printf("Error: failed to prepare statement (uuc)");
+		return 0;
+	}
+
+	sqlite3_bind_text(stmt, 1, reg_username->valuestring, -1, SQLITE_STATIC);
+
+	rc = sqlite3_step(stmt);
+	if (rc == SQLITE_ROW){
+		printf("Username duplicate found, failed to register");
+		sqlite3_finalize(stmt);
+		return 0;
+	}
+
+	sqlite3_finalize(stmt);
+	return 1;
+}
+
+int insert_new_account(
+	sqlite3 *db, 
+	cJSON *reg_username, 
+	cJSON *reg_password){
+
+	const char *new_username = reg_username->valuestring;
+	const char *new_password = reg_password->valuestring;
+
+	sqlite3_stmt *stmt;
+	const char *sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+
+	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		fprintf(stderr, "Error: failed to prepare statement (ina)");
+		return 0;
+	}
+
+	sqlite3_bind_text(stmt, 1, new_username, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 2, new_password, -1, SQLITE_STATIC);
+
+	rc = sqlite3_step(stmt);
+	if (rc != SQLITE_DONE){
+		fprintf(stderr, "Error: Failed to insert new user into database (%s)", sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+		return 0;
+	}
+
+	sqlite3_finalize(stmt);
+	return 1; 
+
 }
 
 void register_handler(int new_fd, cJSON *root){
 
 	cJSON *reg_username = cJSON_GetObjectItem(root, "regUsername");
 	cJSON *reg_password = cJSON_GetObjectItem(root, "regPassword");
-	cJSON *reg_password_confirm = cJSON_GetObjectItem(root, "passwordConfirm");
+	cJSON *password_confirm = cJSON_GetObjectItem(root, "passwordConfirm");
 
-	if (!cJSON_IsString(reg_username) || !cJSON_IsString(reg_password) || !cJSON_IsString(reg_password_confirm)) {
+	if (!cJSON_IsString(reg_username) 
+		|| !cJSON_IsString(reg_password) 
+		|| !cJSON_IsString(password_confirm)) {
 		printf("Invalid JSON structure, failed to parse\n");
 		cJSON_Delete(root);
 		close(new_fd);
@@ -156,6 +223,12 @@ void register_handler(int new_fd, cJSON *root){
 	}
 
 	sqlite3 *db;
+	if (sqlite3_open("data_be/users.db", &db) != SQLITE_OK){
+		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+		return;
+	}
+
+
 
 	const char* response =
 		"HTTP/1.1 200 OK\r\n"
@@ -166,8 +239,15 @@ void register_handler(int new_fd, cJSON *root){
 		"0";
 
 
-	if (!password_validity_check(db, reg_username, reg_password, reg_password_confirm)){
+	if (!password_validity_check(db, reg_username, reg_password, password_confirm)){
 		fprintf(stderr, "Failed to ensure password validity");
+		send(new_fd, response, strlen(response), 0);
+		close(new_fd);
+		return;
+	}
+
+	if (!username_validity_check(db, reg_username)){
+		fprintf(stderr, "Username was not unique, failed to register");
 		send(new_fd, response, strlen(response), 0);
 		close(new_fd);
 		return;
@@ -179,10 +259,32 @@ void register_handler(int new_fd, cJSON *root){
 		close(new_fd);
 		return;
 	}
+	
+	if (!insert_new_account(db, reg_username, reg_password)){
+		fprintf(stderr, "Failed to complete new account creation");
+		send(new_fd, response, strlen(response), 0);
+		close(new_fd);
+		return;
+	}
+	else{
+		const char* response =
+		"HTTP/1.1 200 OK\r\n"
+		"Content-Type: text/plain\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Content-Length: 1\r\n"
+		"\r\n"
+		"1";
 
+		send((new_fd), response, strlen(response), 0);
+	}
 
+	sqlite3_close(db);
 }
 
+void trade_handler(int new_fd, cJSON *root) {
+	
+
+}
 
 int main(void){
 
@@ -250,6 +352,7 @@ int main(void){
 		buffer[bytes_received] = '\0';
 		printf("Received: %s\n", buffer);
 
+		//CORS (Cross-Origin Resource Sharing) preflight request handling
 		if (strncmp(buffer, "OPTIONS", 7) == 0){
 			const char* options_response = 
 				"HTTP/1.1 204 No Content\r\n"
@@ -261,7 +364,6 @@ int main(void){
 
 			send(new_fd, options_response, strlen(options_response), 0);
 			close(new_fd);
-
 			continue;
 		}
 
@@ -285,15 +387,26 @@ int main(void){
 			continue;
 		}
 
-		cJSON *action = cJSON_GetObjectItem(root, "action");
-		if(strcmp(action->valuestring, "login") == 0){
+		char method[8];
+		char path[256];
+		sscanf(buffer, "%s %s", method, path);
+
+		const char* not_found = 
+			"HTTP/1.1 404 Not Found\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: 27\r\n\r\n"
+			"{\"error\": \"Route not found\"}";
+
+		if (strcmp(method, "POST") == 0 && strcmp(path, "/login") == 0) {
 			login_handler(new_fd, root);
-		}
-		else if (strcmp(action->valuestring, "register") == 0){
-			sqlite3 *db;
+		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/register") == 0){
 			register_handler(new_fd, root);
+		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/trade") == 0) {
+			trade_handler(new_fd, root);
+		} else {
+			send(new_fd, not_found, strlen(not_found), 0);
 		}
-	
+
 		cJSON_Delete(root);
 		close(new_fd);
 
