@@ -3,37 +3,111 @@ body {
 	margin: 0;
 }
 
+.content-container {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	justify-content: flex-start;
+	align-items: flex-start;
+}
+
 .dashboard-container {
 	font-family: monospace;
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
 	align-items: flex-start;
-	margin-left: 24px;
-	height: 100vh;
 	width: 100vw;
 }
 
-.dashboard-title {
+.dashboard-title h1 {
 	font-weight: 900;
-	flex-direction: column;
-	justify-content: flex-start;
+	font-size: 56px;
+	text-align: center;
+	justify-self: flex-start;
 	width: 100vw;
 	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+.right-side-container {
+	display: flex;
+	justify-self: flex-end;
+	justify-content: center;
+	height: 600px;
+	width: 1000px;
+	margin-left: 500px;
+}
+
+.open-trade-panel {
+	display: flex;
+	justify-self: flex-start;
+	align-self: flex-start;
+}
+
+.trade-history-title {
+	font-size: 28px;
+	text-decoration: underline;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.open-trade-title {
+	font-size: 28px;
+	text-decoration: underline;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+
+}
+
+.open-trade-button {
+	width: 360px;
+	margin-top: 56px;
+	font-size: 24px;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+	background-color: #b3ffb3;
+	border: 2px solid #333;
+}
+
 .accounts-column {
+	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
 	align-items: flex-start;
-	height: 100vh;
+	margin-left: 24px;
+}
+
+.sort-by-container {
+	display: flex;
+	align-items: center;
+	justify-content: space-evenly;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sort-by-dropdown {
+	padding: 2px;
+	justify-content: end;
+	align-content: end;
+}
+
+.trade-history-column {
+	margin-top: 8px;
+	width: 300px;
+	height: 500px;
+	padding: 12px;
+	border: 2px solid #333;
+	border-radius: 10px;
+	background-color: #e6fff1;
+	overflow-y: scroll;
+	box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+	font-size: 12px;
 }
 
 .signout-footer {
+	justify-self: end;
 	align-self: flex-start;
-	margin-bottom: 24px;
 }
 
 .signout-button {
+	font-size: 24px;
+	font-weight: 360;
 	padding: 12px 24px;
+	margin-top: 24px;
 }
