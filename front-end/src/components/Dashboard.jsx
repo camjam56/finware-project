@@ -23,9 +23,10 @@ import { UserContext } from '../context/UserContext';
 
 
 const Dashboard = () => {
-	const [activePanel, setActivePanel] = useState(null);
+	const [stockSymbol, setStockSymbol] = useState('');
+	const [tradeTimestamp, setTradeTimestamp] = useState('');
 	const navigate = useNavigate();
-	const { user, loggedInStatus } = useContext(UserContext);
+	const { user } = useContext(UserContext);
 
 	const handleSignOut = () => {
 		navigate(ROUTES.login);
@@ -52,13 +53,6 @@ const Dashboard = () => {
 							</select>
 						</div>
 					</div>
-					<button
-						className="open-trade-button"
-						onClick={() => setActivePanel('openTrade')}
-					>
-						Open New Trade
-					</button>
-
 					<button className="signout-button" onClick={handleSignOut}>
 						Sign Out
 					</button>
@@ -66,16 +60,42 @@ const Dashboard = () => {
 				</aside>
 
 				<div className="right-side-container">
-					{activePanel === 'openTrade' && (
-						<div className="open-trade-panel">
-							<h2 className="open-trade-title">Opening Trade Details</h2>
-						</div>
-					)}
+					<div className="open-trade-panel">
+						<h2 className="trade-details-title">New Trade</h2>
+						<form className="trade-form">
+							<label className="trade-label">
+								Stock Symbol:
+								<select value={stockSymbol} onChange={(e) => setStockSymbol(e.target.value)} required>
+									<option value="">-- Select Stock --</option>
+									<option value="GPU">GPU</option>
+									<option value="MBRD">MBRD</option>
+									<option value="SSD">SSD</option>
+								</select>
+							</label>
+							<label className="trade-label">
+								Trade Type:
+								<select name="type" required>
+									<option value="buy">Buy</option>
+									<option value="sell">Sell</option>
+								</select>
+							</label>
+							<label className="trade-label">
+								Quantity:
+								<input type="number" name="quantity" required min="1" />
+							</label>
 
-					{activePanel === 'tradeInformation' && (
-						<div className="trade-information-panel">
-						</div>
-					)}
+							<label className="trade-label">
+								Price per Share:
+								<input type="number" name="price" required step="0.01" />
+							</label>
+
+							<label className="trade-label">
+								Trade Timestamp:
+							</label>
+
+							<button className="submit-trade-button" type="submit">Submit Trade</button>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div >

@@ -7,7 +7,7 @@ body {
 	display: flex;
 	flex-direction: row;
 	width: 100%;
-	justify-content: flex-start;
+	justify-content: space-between;
 	align-items: flex-start;
 }
 
@@ -18,59 +18,82 @@ body {
 	justify-content: flex-start;
 	align-items: flex-start;
 	width: 100vw;
+	height: 100vh;
 }
 
 .dashboard-title h1 {
 	font-weight: 900;
 	font-size: 56px;
 	text-align: center;
-	justify-self: flex-start;
 	width: 100vw;
 	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+	text-decoration: underline;
+}
+
+.trade-form {
+	display: flex;
+	height: 500px;
+	text-align: flex-start;
+	text-justify: flex-start;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-content: space-evenly;
 }
 
 .right-side-container {
 	display: flex;
+	flex-direction: column;
 	justify-self: flex-end;
 	justify-content: center;
-	height: 600px;
-	width: 1000px;
-	margin-left: 500px;
+	height: 700px;
+	width: 25vw;
+	border: 2px solid #333;
+	border-radius: 12px;
+	padding: 12px;
+	margin-right: 240px;
+}
+
+.trade-label {
+	margin: 12px;
+}
+
+.submit-trade-button {
+	justify-self: end;
+	align-self: center;
 }
 
 .open-trade-panel {
 	display: flex;
-	justify-self: flex-start;
-	align-self: flex-start;
+	height: 700px;
+	width: 25vw;
+	text-align: flex-start;
+	text-justify: center;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-content: center;
+	justify-self: center;
+	align-self: center;
 }
 
 .trade-history-title {
 	font-size: 28px;
 	text-decoration: underline;
+	text-align: center;
 	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.open-trade-title {
+.trade-details-title {
 	font-size: 28px;
+	justify-self: flex-start;
+	align-self: center;
 	text-decoration: underline;
 	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-
-}
-
-.open-trade-button {
-	width: 360px;
-	margin-top: 56px;
-	font-size: 24px;
-	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-	background-color: #b3ffb3;
-	border: 2px solid #333;
 }
 
 .accounts-column {
 	display: flex;
 	flex-direction: column;
-	justify-content: flex-start;
-	align-items: flex-start;
+	height: 85vh;
 	margin-left: 24px;
 }
 
@@ -89,8 +112,8 @@ body {
 
 .trade-history-column {
 	margin-top: 8px;
-	width: 300px;
-	height: 500px;
+	width: 25vw;
+	height: 50vh;
 	padding: 12px;
 	border: 2px solid #333;
 	border-radius: 10px;
@@ -100,14 +123,10 @@ body {
 	font-size: 12px;
 }
 
-.signout-footer {
-	justify-self: end;
-	align-self: flex-start;
-}
-
 .signout-button {
-	font-size: 24px;
-	font-weight: 360;
+	justify-self: flex-end;
+	align-self: flex-start;
+	font-size: 12px;
 	padding: 12px 24px;
-	margin-top: 24px;
+	margin-top: 128px;
 }
