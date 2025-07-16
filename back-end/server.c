@@ -282,7 +282,53 @@ void register_handler(int new_fd, cJSON *root){
 }
 
 void trade_handler(int new_fd, cJSON *root) {
+
+	cJSON *stock_symbol = cJSON_GetObjectItem(root,"stockSymbol");
+	cJSON *quantity = cJSON_GetObjectItem(root, "quantity");
+	cJSON *trade_type = cJSON_GetObjectItem(root, "tradeType");
+
+	if (!cJSON_IsString(stock_symbol) || !cJSON_IsNUmber(quantity) || !cJSON_IsString(trade_type)){
+		fprintf(stderr, "Failed to access trade submission due to icorrect formatting");
+		const char *response = 
+		"HTTP/1.1 400 Bad Request\r\n"
+		"Content-Type: text/plain\r\n"
+		"Access-Control-ALlow-Origin *\r\n"
+		"Content-Length: 1\r\n"
+		"\r\n"
+		"0";
+		send(new_fd, response, strlen(response), 0);
+		return;
+	}
+
+	sqlite3 *db;
+	if (sqlite3_open("data_be/account_trades.db", &db) != SQLITE_OK){
+		fprintf(stderr, "Failed to access database: %s\n", sqlite3_errmsg(db));
+		return;
+	}
+
+	sqlite3_stmt *stmt;
+	const char *sql = 
+	"INSERT INTO trades "
+		"(username, "
+		"symbol, "
+		"stock_name, "
+		"quantity, "
+		"price_per_share, "
+		"total_cost, "
+		"trade_type, "
+		"trade_time) "
+	"VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+
+	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		fprintf(stderr, "Error preparing statement\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return;
+	}
+
 	
+
 
 }
 
@@ -403,7 +449,7 @@ int main(void){
 			register_handler(new_fd, root);
 		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/trade") == 0) {
 			trade_handler(new_fd, root);
-		} else {
+		}else {
 			send(new_fd, not_found, strlen(not_found), 0);
 		}
 
