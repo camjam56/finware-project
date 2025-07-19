@@ -1,30 +1,16 @@
-import React, { useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import './Dashboard.css';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../routes/routes.js';
 import { UserContext } from '../context/UserContext';
 
-
-//async function openTrade(tradeData) {
-//	const response = await fetch("http://localhost:5656/trade", {
-//		method: "POST",
-//		body: JSON.stringify(tradeData),
-//		headers: { "Content-Type": "application/json" },
-//	});
-//
-//	if (!response.ok) {
-//		throw new Error("Failed to open trade");
-//	}
-//
-//	return await response.json();
-//}
-
-
-
-
 const Dashboard = () => {
 	const [stockSymbol, setStockSymbol] = useState('');
-	const [tradeTimestamp, setTradeTimestamp] = useState('');
+	const [tradeType, setTradeType] = useState('');
+	const [quantity, setQuantity] = useState('');
+	const [pricePerShare, setPricePerShare] = useState(null);
+	const [userTrades, setUserTrades] = useState([]);
+	const [sortBy, setSortBy] = useState('time');
 	const navigate = useNavigate();
 	const { user } = useContext(UserContext);
 
@@ -32,8 +18,103 @@ const Dashboard = () => {
 		navigate(ROUTES.login);
 	};
 
-	return (
+	const sortedTrades = useMemo(() => {
+		if (!userTrades) return [];
 
+		const tradesCopy = [...userTrades];
+
+		switch (sortBy) {
+			case 'stock':
+				return tradesCopy.sort((a, b) =>
+					a.symbol.localeCompare(b.symbol));
+
+			case 'type':
+				return tradesCopy.sort((a, b) =>
+					a.tradeType.localeCompare(b.tradeType));
+
+			case 'quantity':
+				return tradesCopy.sort((a, b) => b.quantity - a.quantity);
+
+			case 'time':
+			default:
+				return tradesCopy.sort(
+					(a, b) => new Date(b.trade_time) - new Date(a.trade_time));
+		}
+	}, [userTrades, sortBy]);
+
+
+	const mockStocks = [
+		{ symbol: 'GPU', name: 'Graphics Cards Inc.', price: 2312.12 },
+		{ symbol: 'MBRD', name: 'Motherboards Inc.', price: 165.56 },
+		{ symbol: 'SSD', name: 'Solid-State Drives Inc.', price: 44.24 },
+	];
+
+	useEffect(() => {
+		const fetchUserTrades = async () => {
+			try {
+				const response = await fetch(`http://localhost:5656/trades?user=${user}`);
+				if (!response.ok) throw new Error("Failed to fetch the user's trade history");
+
+				const data = await response.json();
+				setUserTrades(data.trades);
+
+			} catch (error) {
+				console.error("Error fetching user's trade history");
+			}
+		};
+
+		if (user) fetchUserTrades();
+	}, [user]);
+
+	useEffect(() => {
+		const selected = mockStocks.find(stock => stock.symbol === stockSymbol);
+		setPricePerShare(selected ? selected.price : null);
+	}, [stockSymbol]);
+
+
+	const handleSubmit = async (e) => {
+
+		e.preventDefault();
+
+		const tradeData = {
+			user,
+			stockSymbol,
+			tradeType,
+			quantity: Number(quantity),
+			pricePerShare: Number(pricePerShare),
+		};
+
+		try {
+			const response = await fetch("http://localhost:5656/trade", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(tradeData),
+			});
+
+			if (!response.ok) throw new Error("Failed with trade submission");
+
+			const data = await response.json();
+			console.log("Trade submitted:", data);
+
+			setStockSymbol('');
+			setTradeType('');
+			setQuantity('');
+			setPricePerShare(null);
+
+
+			const tradeRes = await fetch(`http://localhost:5656/trades?user=${user}`);
+			if (!tradeRes.ok) throw new Error("Failed to refresh user's trades");
+			const newTrades = await tradeRes.json();
+			setUserTrades(newTrades.trades);
+
+
+		} catch (error) {
+			console.error("Error with trade submission:", error);
+		}
+	};
+
+
+	return (
 		<div className="dashboard-container">
 			<header className="dashboard-title">
 				<h1>{user}'s Dashboard</h1>
@@ -45,59 +126,101 @@ const Dashboard = () => {
 					<div className="trade-history-column">
 						<div className="sort-by-container">
 							<h3>Sort by:</h3>
-							<select className="sort-by-dropdown">
+							<select className="sort-by-dropdown"
+								value={sortBy}
+								onChange={(e) => setSortBy(e.target.value)}>
 								<option value="time">Most Recent</option>
 								<option value="stock">Stock</option>
 								<option value="type">Trade Type</option>
 								<option value="quantity">Quantity</option>
 							</select>
 						</div>
+
+						<div className="trade-history-list">
+
+							{sortedTrades.map((trade, index) => (
+								<div key={index} className="trade-entry">
+									<p>
+										<strong>{trade.tradeType}</strong> {trade.quantity} x {trade.symbol} @ ${trade.pricePerShare.toFixed(2)}
+									</p>
+									<p>
+										Total: ${(trade.pricePerShare * trade.quantity).toFixed(2)} — {new Date(trade.tradeTime).toLocaleString()}
+									</p>
+								</div>
+							))}
+
+
+						</div>
 					</div>
-					<button className="signout-button" onClick={handleSignOut}>
+					<button onClick={handleSignOut} className="signout-button">
 						Sign Out
 					</button>
-
 				</aside>
 
 				<div className="right-side-container">
 					<div className="open-trade-panel">
 						<h2 className="trade-details-title">New Trade</h2>
-						<form className="trade-form">
+						<form onSubmit={handleSubmit} className="trade-form">
 							<label className="trade-label">
 								Stock Symbol:
-								<select value={stockSymbol} onChange={(e) => setStockSymbol(e.target.value)} required>
+								<select
+									value={stockSymbol}
+									onChange={(e) => setStockSymbol(e.target.value)}
+									required
+								>
 									<option value="">-- Select Stock --</option>
-									<option value="GPU">GPU</option>
-									<option value="MBRD">MBRD</option>
-									<option value="SSD">SSD</option>
+									{mockStocks.map((stock) => (
+										<option key={stock.symbol} value={stock.symbol}>
+											{stock.symbol} - {stock.name}
+										</option>
+									))}
 								</select>
 							</label>
+
 							<label className="trade-label">
 								Trade Type:
-								<select name="type" required>
-									<option value="buy">Buy</option>
-									<option value="sell">Sell</option>
+								<select
+									value={tradeType}
+									onChange={(e) => setTradeType(e.target.value)}
+								>
+									<option value="">-- Select Type --</option>
+									<option value="BUY">BUY</option>
+									<option value="SELL">SELL</option>
 								</select>
 							</label>
+
 							<label className="trade-label">
 								Quantity:
-								<input type="number" name="quantity" required min="1" />
+								<input
+									type="number"
+									value={quantity}
+									required
+									min="1"
+									onChange={(e) => setQuantity(e.target.value)}
+								/>
 							</label>
 
 							<label className="trade-label">
-								Price per Share:
-								<input type="number" name="price" required step="0.01" />
+								Price Per Share:{" "}
+								<span>
+									{pricePerShare !== null ? `$${pricePerShare.toFixed(2)}` : '--'}
+								</span>
 							</label>
 
 							<label className="trade-label">
-								Trade Timestamp:
+								Total Cost:{" "}
+								<span>
+									{pricePerShare !== null ? `$${pricePerShare.toFixed(2) * quantity}` : '--'}
+								</span>
 							</label>
 
-							<button className="submit-trade-button" type="submit">Submit Trade</button>
+							<button className="submit-trade-button" type="submit">
+								Submit Trade
+							</button>
 						</form>
 					</div>
 				</div>
-			</div>
+			</div >
 		</div >
 	);
 };

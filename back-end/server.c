@@ -6,18 +6,14 @@
 #include "libs/cJSON.h"
 #include <sqlite3.h>
 #include <regex.h>
+#include <time.h>
+#include <stdlib.h>
 
 const int PORT = 5656;
 const int BACKLOG = 12;
 const int BUFFER_SIZE = 1024;
 
-const char* get_mock_stock_data() {
-    return "{ \"stocks\": ["
-           "{ \"symbol\": \"GPU\", \"name\": \"GPU Designer Inc.\", \"price\": 2034.23, \"change\": -0.54 },"
-           "{ \"symbol\": \"MBRD\", \"name\": \"Motherboard Designer Inc.\", \"price\": 1230.01, \"change\": 12.21 },"
-           "{ \"symbol\": \"SSD\", \"name\": \"SSD Designer Inc.\", \"price\": 32.12, \"change\": -4.23 }"
-           "] }";
-}
+
 
 int login_check(
 
@@ -176,6 +172,7 @@ int unique_username_check(sqlite3 *db, cJSON *reg_username){
 }
 
 int insert_new_account(
+
 	sqlite3 *db, 
 	cJSON *reg_username, 
 	cJSON *reg_password){
@@ -281,14 +278,173 @@ void register_handler(int new_fd, cJSON *root){
 	sqlite3_close(db);
 }
 
-void trade_handler(int new_fd, cJSON *root) {
-	
+void trade_handler(int new_fd, cJSON *root){
 
+	cJSON *username = cJSON_GetObjectItem(root, "user");
+	cJSON *stockSymbol = cJSON_GetObjectItem(root, "stockSymbol");
+	cJSON *tradeType = cJSON_GetObjectItem(root, "tradeType");
+	cJSON *quantity = cJSON_GetObjectItem(root, "quantity");
+	cJSON *pricePerShare = cJSON_GetObjectItem(root, "pricePerShare");
+
+	if (!cJSON_IsString(username) ||
+		!cJSON_IsString(stockSymbol) ||
+		!cJSON_IsString(tradeType) ||
+		!cJSON_IsNumber(quantity) ||
+		!cJSON_IsNumber(pricePerShare)) {
+
+		fprintf(stderr, "Invalid trade JSON structure\n");
+		const char* error_response =
+			"HTTP/1.1 400 Bad Request\r\n"
+			"Content-Type: text/plain\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 0\r\n"
+			"\r\n";
+		send(new_fd, error_response, strlen(error_response), 0);
+		return;
+	}
+
+	double totalCost = quantity->valuedouble * pricePerShare->valuedouble;
+
+	const char* stockName = "Unknown";
+	if (strcmp(stockSymbol->valuestring, "GPU") == 0) {
+		stockName = "Graphics Cards Inc.";
+	} else if (strcmp(stockSymbol->valuestring, "MBRD") == 0) {
+		stockName = "Motherboards Inc.";
+	} else if (strcmp(stockSymbol->valuestring, "SSD") == 0) {
+		stockName = "Solid-State Drives Inc.";
+	}
+
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	char tradeTime[64];
+	strftime(tradeTime, sizeof(tradeTime), "%Y-%m-%dT%H:%M:%S", t);
+
+	sqlite3 *db;
+	if (sqlite3_open("data_be/account_trades.db", &db) != SQLITE_OK){
+		fprintf(stderr, "Failed to open trades DB: %s\n", sqlite3_errmsg(db));
+		const char* error_response =
+			"HTTP/1.1 500 Internal Server Error\r\n"
+			"Content-Type: text/plain\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 0\r\n"
+			"\r\n";
+		send(new_fd, error_response, strlen(error_response), 0);
+		return;
+	}
+
+	const char *sql =
+		"INSERT INTO trades (username, symbol, stock_name, quantity, price_per_share, total_cost, trade_type, trade_time) "
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+	sqlite3_stmt *stmt;
+	if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK){
+		fprintf(stderr, "Failed to prepare insert statement: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return;
+	}
+
+
+	sqlite3_bind_text(stmt, 1, username->valuestring, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 2, stockSymbol->valuestring, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 3, stockName, -1, SQLITE_STATIC);
+	sqlite3_bind_int(stmt, 4, quantity->valueint);
+	sqlite3_bind_double(stmt, 5, pricePerShare->valuedouble);
+	sqlite3_bind_double(stmt, 6, totalCost);
+	sqlite3_bind_text(stmt, 7, tradeType->valuestring, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 8, tradeTime, -1, SQLITE_STATIC);
+
+	if (sqlite3_step(stmt) == SQLITE_DONE) {
+		const char* success_response =
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: application/json\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 22\r\n"
+			"\r\n"
+			"{\"status\":\"success\"}";
+		send(new_fd, success_response, strlen(success_response), 0);
+		printf("Trade recorded successfully for %s\n", username->valuestring);
+	} else {
+		fprintf(stderr, "Error inserting trade: %s\n", sqlite3_errmsg(db));
+		const char* error_response =
+			"HTTP/1.1 500 Internal Server Error\r\n"
+			"Content-Type: application/json\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Content-Length: 26\r\n"
+			"\r\n"
+			"{\"status\":\"trade failed\"}";
+		send(new_fd, error_response, strlen(error_response), 0);
+	}
+
+	sqlite3_finalize(stmt);
+	sqlite3_close(db);
 }
+
+void get_trade_history_handler(int new_fd, const char *path){
+
+	const char *query = strchr(path, '?');
+	if (!query || strncmp(query, "?user=", 6) != 0) {
+		fprintf(stderr, "Missing or invalid query parameter\n");
+		close(new_fd);
+		return;
+	}
+
+	const char *username = query + 6;
+	sqlite3 *db;
+	if (sqlite3_open("data_be/account_trades.db", &db) != SQLITE_OK) {
+		fprintf(stderr, "Failed to open DB: %s\n", sqlite3_errmsg(db));
+		close(new_fd);
+        return;
+    }
+
+    const char *sql = "SELECT symbol, stock_name, quantity, price_per_share, total_cost, trade_type, trade_time FROM trades WHERE username = ?";
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+
+    cJSON *trades_array = cJSON_CreateArray();
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        cJSON *trade = cJSON_CreateObject();
+        cJSON_AddStringToObject(trade, "symbol", (const char *)sqlite3_column_text(stmt, 0));
+        cJSON_AddStringToObject(trade, "stockName", (const char *)sqlite3_column_text(stmt, 1));
+        cJSON_AddNumberToObject(trade, "quantity", sqlite3_column_int(stmt, 2));
+        cJSON_AddNumberToObject(trade, "pricePerShare", sqlite3_column_double(stmt, 3));
+        cJSON_AddNumberToObject(trade, "totalCost", sqlite3_column_double(stmt, 4));
+        cJSON_AddStringToObject(trade, "tradeType", (const char *)sqlite3_column_text(stmt, 5));
+        cJSON_AddStringToObject(trade, "tradeTime", (const char *)sqlite3_column_text(stmt, 6));
+        cJSON_AddItemToArray(trades_array, trade);
+    }
+
+    cJSON *response_obj = cJSON_CreateObject();
+    cJSON_AddItemToObject(response_obj, "trades", trades_array);
+    char *response_str = cJSON_PrintUnformatted(response_obj);
+
+    char header[256];
+    snprintf(header, sizeof(header),
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Type: application/json\r\n"
+             "Access-Control-Allow-Origin: *\r\n"
+             "Content-Length: %zu\r\n\r\n",
+             strlen(response_str));
+
+    send(new_fd, header, strlen(header), 0);
+    send(new_fd, response_str, strlen(response_str), 0);
+
+    free(response_str);
+    cJSON_Delete(response_obj);
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+
 
 int main(void){
 
-    int sockfd;                         //Socket file descriptor
+	int sockfd;                         //Socket file descriptor
     struct sockaddr_in server_addr;     //Struct type, with format of sockaddr_in, named server_addr
 
 
@@ -367,31 +523,37 @@ int main(void){
 			continue;
 		}
 
-		char *json_start = strstr(buffer, "\r\n\r\n");
-		if (json_start == NULL) {
-			printf("Error with HTTP request\n");
-			close(new_fd);
-			continue;
-		}
 
-		//Removes the \r\n\r\n to begin json_start from the start
-		json_start += 4;
-
-		//Parsing the JSON file to be read by C
-		cJSON *root = cJSON_Parse(json_start);
-
-		//Error check for correct parsing
-		if (root == NULL) {
-			printf("Error parsing JSON file\n");
-			close(new_fd);
-			continue;
-		}
-
+		// Parse HTTP method and path
 		char method[8];
 		char path[256];
 		sscanf(buffer, "%s %s", method, path);
 
-		const char* not_found = 
+		cJSON *root = NULL;
+
+		// Only parse JSON for POST routes that require a body
+		if (strcmp(method, "POST") == 0 &&
+			(strcmp(path, "/login") == 0 ||
+			strcmp(path, "/register") == 0 ||
+			strcmp(path, "/trade") == 0)) {
+
+			char *json_start = strstr(buffer, "\r\n\r\n");
+			if (json_start == NULL) {
+				printf("Error: Malformed HTTP request (missing body)\n");
+				close(new_fd);
+				continue;
+			}
+			json_start += 4;
+
+			root = cJSON_Parse(json_start);
+			if (root == NULL) {
+				printf("Error parsing JSON file\n");
+				close(new_fd);
+				continue;
+			}
+		}
+
+		const char *not_found =
 			"HTTP/1.1 404 Not Found\r\n"
 			"Content-Type: application/json\r\n"
 			"Content-Length: 27\r\n\r\n"
@@ -399,20 +561,20 @@ int main(void){
 
 		if (strcmp(method, "POST") == 0 && strcmp(path, "/login") == 0) {
 			login_handler(new_fd, root);
-		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/register") == 0){
+		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/register") == 0) {
 			register_handler(new_fd, root);
 		} else if (strcmp(method, "POST") == 0 && strcmp(path, "/trade") == 0) {
 			trade_handler(new_fd, root);
+		} else if (strcmp(method, "GET") == 0 && strncmp(path, "/trades", 7) == 0) {
+			get_trade_history_handler(new_fd, path); 
 		} else {
 			send(new_fd, not_found, strlen(not_found), 0);
 		}
 
-		cJSON_Delete(root);
+		if (root) cJSON_Delete(root);
 		close(new_fd);
-
 	}
 
 	close(sockfd);
 	return 0;
-
 }

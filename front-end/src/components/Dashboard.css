@@ -6,7 +6,7 @@ body {
 .content-container {
 	display: flex;
 	flex-direction: row;
-	width: 100%;
+	width: 100vw;
 	justify-content: space-between;
 	align-items: flex-start;
 }
@@ -18,7 +18,6 @@ body {
 	justify-content: flex-start;
 	align-items: flex-start;
 	width: 100vw;
-	height: 100vh;
 }
 
 .dashboard-title h1 {
@@ -32,7 +31,7 @@ body {
 
 .trade-form {
 	display: flex;
-	height: 500px;
+	height: 50vh;
 	text-align: flex-start;
 	text-justify: flex-start;
 	flex-direction: column;
@@ -44,8 +43,8 @@ body {
 	display: flex;
 	flex-direction: column;
 	justify-self: flex-end;
-	justify-content: center;
-	height: 700px;
+	justify-content: flex-start;
+	height: 75vh;
 	width: 25vw;
 	border: 2px solid #333;
 	border-radius: 12px;
@@ -55,6 +54,7 @@ body {
 
 .trade-label {
 	margin: 12px;
+	font-size: 24px;
 }
 
 .submit-trade-button {
@@ -62,9 +62,11 @@ body {
 	align-self: center;
 }
 
+.trade-history-list {}
+
 .open-trade-panel {
 	display: flex;
-	height: 700px;
+	height: 70vh;
 	width: 25vw;
 	text-align: flex-start;
 	text-justify: center;
@@ -99,6 +101,8 @@ body {
 
 .sort-by-container {
 	display: flex;
+	flex-direction: row;
+	align-content: flex-start;
 	align-items: center;
 	justify-content: space-evenly;
 	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
@@ -128,5 +132,5 @@ body {
 	align-self: flex-start;
 	font-size: 12px;
 	padding: 12px 24px;
-	margin-top: 128px;
+	margin-top: 64px;
 }
