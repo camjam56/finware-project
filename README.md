@@ -1,5 +1,6 @@
 # Finware-Project - A mock stocks trading platform
 
+First of all, thank you for viewing my project!
 
 ## What the project is
 
@@ -136,10 +137,16 @@ I have also utilisied the package management system and learned to install packa
 
         -   No session management or token system implemented, using web-tokens for user authentication would be more efficient and safer
 
+## Finale
+
+Once again, thank you for viewing my project and I hope you have a lovely day :)
 
 
+---
 
 
+Created by [camjam56](https://github.com/camjam56)
+@ 07/2025
 
 
 
