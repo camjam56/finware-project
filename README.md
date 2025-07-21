@@ -18,6 +18,7 @@ However, my primary goal in general was to learn; to fundamentally understand ne
 ### Tech-Stack
 
 **Front-End** : React, Vite, Node.js - JavaScript, CSS, HTML(jsx)
+
 **Back-End** : C, SQLite - cJSON and sqlite3 libraries for C server
 
 
@@ -26,10 +27,12 @@ However, my primary goal in general was to learn; to fundamentally understand ne
 #### Back-End
 
 **C**
+
 I first attained a grasp with low-level programming fundamentals, understanding pointers fully and memory management. Another new concept for me was catching and checking for errors in the code manually instead of letting the code do it automatically.
 Learning to make the code 'safe' was a big priority, and I remain a beginner in the world of C programming. Yet, in comparison to where I was when I started this project, I have come very far and feel very confident.  
 
 **Network/Socket Programming**
+
 As mentioned, lots of time was spent on theory, reading through documentation.
 Specifically studying 'Beej's Guide to Network Programming: Using Internet Sockets' that can be found in scrollable single-page HTML format here: https://beej.us/guide/bgnet/html/.
 
@@ -38,23 +41,27 @@ For example, the arguments in getaddrinfo() and using socket(). Then using bind(
 It was after I was deeper in to the project that I had to begin referring back to the documentation and researching further the slightly more advanced ideas in network programming.
 
 **JSON Parsing using cJSON - HTTP Protocol Understanding - RESTful API**
+
 Persevering with the desire to learn computing from the ground-up, I continued to work in my back-end in C, and I did so by parsing JSON from the front-end with cJSON.
 This taught me not just the basics of the cJSON library, but also how messages accross HTTP are formatted, sent and received.
 Incidentally, this approach led me to learn through bug fixing, research and trial and error issues to do with Cross-Origin Resource Sharing (CORS Prefilght Request errors).
 After nearing the end of the project when more calls and requests were beign made from the front-end, I refactored my back-end code to be _RESTful_, which I also spent time learning about the benefits of before-hand.
 
 **SQLite Database Integration**
+
 Here I gained a lot of hands-on experience and familiarity with SQLite syntax, and also its workflow, such as creating 'init' files for more clean and modular workflows with databases.
 My two databases are users.db, which I created earlier in the project and manually, and account_trades.db, which was made with an init file that can be found in the same directory. This was after learnign about better SQLite practices.
 In the spirirt of learning cyber security and code security in general, I engaged in better than basic practices with my SQL commands, by utilising sqlite3_prepare_v2() in order to avoid simple SQL injection attacks.
 
 **Password and Username Validation/Authentication**
+
 On both the front-end and back-end, however more importantly security wise the back-end, I employed understanding of _Regex_. 
 The purpose being to ensure best practices with usernames and passwords when registering, and I also endeavoured to create a duplicate username check by scanning the users.db database before writing the account to the database.
 
 #### Front-End
 
 **React.js**
+
 I created three different main pages using both .jsx and .css components ('Login', 'Register', and 'Dashboard').
 Utilising hooks such as useNaviagte, useState, useContext, useMemo etc, I created smoothly transitioning pages and global states (for user).
 As mentioned in 'Password and Username Valdiation', I also learned to utilise the Regex function on the front-end to quick check for validity before requesting more from the server (efficiency and security purposes).
@@ -64,11 +71,13 @@ Of course, in order for the front-end and back-end to communicate fluidly - or e
 ### Development Environment and Tools
 
 **Git Version Control**
+
 Engaged frequently in commits and messages, with multiple different branches for safety, in git version control. I even had a specific moment where I compiled my server file incorrectly and it deleted.
 Only because of git was I able to pull down my code again, which taught me a very valuable lesson on the importance of version control.
 On a side note, I utilised SSH keys for pushing and pulling my work from seperate devices as I worked from different locations. The project was made across Linux and MacOS.
 
 **Linux (Fedora) - Bash**
+
 As my entry to proffesional software engineering, I dual booted Linux on a second SSD and spent a fair bit of time (roughly a couple days) researching the differences between Linux and Windows.
 I decided on Linux Fedora due to the type of future projects I will be working on, the frequent updates, and the choice of DE.
 Through Linux I have learned _Bash_ to a decent level, I can confidently traverse my filebase through command line interface and create and delete directories and files where needed.
