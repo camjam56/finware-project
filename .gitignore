@@ -33,6 +33,5 @@ users.db
 
 # Editor directories and files (common ones)
 .vscode/
-.idea/
 *.swp
 *.swo
