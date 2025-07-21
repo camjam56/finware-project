@@ -26,6 +26,10 @@ users.db
 *.out
 *.o
 *.obj
+/server
+
+# Vite Cache
+.vite/
 
 # Editor directories and files (common ones)
 .vscode/
